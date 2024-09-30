@@ -1,0 +1,86 @@
+# INITIALIZATION
+units metal
+dimension 3
+boundary p p p
+atom_style full
+atom_modify map array
+variable latparam equal 3.61492506589110000000
+
+######################################
+#INPUTS
+variable set_x equal 14
+variable set_y equal 7
+variable set_z equal 7
+
+variable nst_equilibration equal 20000
+variable temp equal 300
+variable t_damp equal 1
+
+variable nst_run equal 150000000   #1ns = 1000000
+
+######################################
+# SIMULATION CELL VARIABLES (in Angstroms)
+
+lattice  fcc ${latparam} orient x 1 0 0 orient y 0 1 0  orient z 0 0 1
+region whole block 0 ${set_x} 0 ${set_y} 0 ${set_z}
+create_box 1 whole
+create_atoms 1 region whole 
+
+mass 1 63.546
+pair_style eam/alloy
+pair_coeff * * Cu_mishin1.eam.alloy Cu
+
+
+minimize 1.0e-15 1.0e-15 100 1000
+
+write_data minimized.data
+
+##########################################
+# Equilibration
+
+compute lx1low all reduce min x
+compute lx1hi all reduce max x
+
+
+thermo 1000
+thermo_style custom step temp pe press vol lx ly lz c_lx1low c_lx1hi 
+ 
+dump myDump all atom 5000 equilibration.lammpstrj
+
+velocity all create ${temp} 999
+fix 2 all npt temp ${temp} ${temp} ${t_damp} iso 1.0 1.0 1
+run ${nst_equilibration}
+unfix 2
+undump myDump
+
+reset_timestep 0
+write_data equilibrated.data
+
+
+
+###########################################
+
+fix 1 all npt temp ${temp} ${temp} ${t_damp} y 0 0 1 z 0 0 1
+variable strainrate equal 0.000001  #0.00001 e' 1% strain al nano secondo
+fix 3 all deform 1 x erate ${strainrate} units box remap x
+
+
+# Setup file output (time in ps, pressure in GPa)
+variable p2 equal "-pxx/10000"
+variable p3 equal "-pyy/10000"
+variable p4 equal "-pzz/10000"
+variable p5 equal "-pxy/10000"
+variable p6 equal "-pxz/10000"
+variable p7 equal "-pyz/10000"
+variable p8 equal "pe"
+
+
+# Output stress and strain information to datafile for Matlab post-processing
+fix gb_fracture all print 1000 "${p2} ${p3} ${p4} ${p5} ${p6} ${p7} ${p8}" file data.txt screen no
+run 0
+
+#output trajectory
+dump myDump all atom 1000 scnemd.lammpstrj
+
+run ${nst_run}
+#run ${nst_run}
