@@ -1,0 +1,11 @@
+tau_window	250
+t_smooth	200
+t_delay		0
+t_conv		1
+t_units		ps
+example_ID	123
+bins		100	
+num_tau_w	20
+min_tau_w	200
+min_t_smooth	200
+max_t_smooth	200
